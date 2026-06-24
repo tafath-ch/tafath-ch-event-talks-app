@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Notes Hub</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Google Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Navigation -->
+        <aside class="app-sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <span class="material-symbols-outlined logo-icon">database_glue</span>
+                    <div class="logo-text">
+                        <h1>BigQuery</h1>
+                        <span>Release Notes</span>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <button class="nav-item active" id="nav-all">
+                    <span class="material-symbols-outlined">feed</span>
+                    <span>All Updates</span>
+                </button>
+                <button class="nav-item" id="nav-bookmarks">
+                    <span class="material-symbols-outlined">grade</span>
+                    <span>Starred Notes</span>
+                    <span class="badge badge-star-count" id="starred-count-badge">0</span>
+                </button>
+            </nav>
+            
+            <!-- Quick Analytics Mini-Widget -->
+            <div class="sidebar-widget">
+                <h3>Update Distribution</h3>
+                <div class="distribution-chart" id="distribution-chart">
+                    <!-- Dynamic chart elements here -->
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="api-status">
+                    <div class="status-indicator online" id="status-indicator"></div>
+                    <div class="status-details">
+                        <p id="status-text">Connected</p>
+                        <span id="last-fetched-text">Checking cache...</span>
+                    </div>
+                </div>
+                <button class="btn btn-refresh" id="btn-refresh" title="Force Refresh from Google Cloud">
+                    <span class="material-symbols-outlined">sync</span>
+                    <span>Sync Latest</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="app-main">
+            <!-- Top Controls bar -->
+            <header class="app-header">
+                <div class="search-wrapper">
+                    <span class="material-symbols-outlined search-icon">search</span>
+                    <input type="text" id="search-input" placeholder="Search features, fixes, announcements, SQL details...">
+                    <button class="clear-search-btn" id="clear-search" style="display: none;">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                
+                <div class="header-actions">
+                    <!-- Date Filter -->
+                    <div class="select-wrapper">
+                        <span class="material-symbols-outlined select-icon">calendar_today</span>
+                        <select id="time-filter">
+                            <option value="all">All Time</option>
+                            <option value="7">Last 7 Days</option>
+                            <option value="30">Last 30 Days</option>
+                            <option value="90">Last 90 Days</option>
+                            <option value="365">Past Year</option>
+                        </select>
+                    </div>
+
+                    <!-- Sort -->
+                    <div class="select-wrapper">
+                        <span class="material-symbols-outlined select-icon">sort</span>
+                        <select id="sort-order">
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Interactive Header Cards -->
+            <section class="overview-dashboard">
+                <div class="stat-card total-card">
+                    <div class="stat-icon-wrapper">
+                        <span class="material-symbols-outlined">database</span>
+                    </div>
+                    <div class="stat-data">
+                        <h2 id="stat-total-count">-</h2>
+                        <p>Total Release Items</p>
+                    </div>
+                </div>
+                <div class="stat-card features-card" data-category="Feature">
+                    <div class="stat-icon-wrapper">
+                        <span class="material-symbols-outlined">auto_awesome</span>
+                    </div>
+                    <div class="stat-data">
+                        <h2 id="stat-features-count">-</h2>
+                        <p>New Features</p>
+                    </div>
+                </div>
+                <div class="stat-card fixes-card" data-category="Fix">
+                    <div class="stat-icon-wrapper">
+                        <span class="material-symbols-outlined">build</span>
+                    </div>
+                    <div class="stat-data">
+                        <h2 id="stat-fixes-count">-</h2>
+                        <p>Fixes & Improvements</p>
+                    </div>
+                </div>
+                <div class="stat-card announcements-card" data-category="Announcement">
+                    <div class="stat-icon-wrapper">
+                        <span class="material-symbols-outlined">campaign</span>
+                    </div>
+                    <div class="stat-data">
+                        <h2 id="stat-announcements-count">-</h2>
+                        <p>Announcements</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filter Pills Row -->
+            <section class="category-filters-container">
+                <div class="category-filters" id="category-pills">
+                    <!-- Dynamic category pills -->
+                </div>
+            </section>
+
+            <!-- Active Filters Info -->
+            <section class="active-filters-info" id="active-filters-info" style="display: none;">
+                <span class="filter-summary-text" id="filter-summary-text">Showing 10 updates matching filters</span>
+                <button class="btn btn-text btn-reset-filters" id="btn-reset-filters">
+                    Reset all filters
+                </button>
+            </section>
+
+            <!-- Release Notes Stream -->
+            <section class="release-timeline-container">
+                <div class="timeline-loading-state" id="timeline-loading">
+                    <div class="spinner"></div>
+                    <p>Fetching the latest BigQuery release notes...</p>
+                </div>
+                
+                <div class="timeline-empty-state" id="timeline-empty" style="display: none;">
+                    <span class="material-symbols-outlined empty-icon">find_in_page</span>
+                    <h3>No release notes found</h3>
+                    <p>Try adjusting your search keywords, category filters, or date ranges.</p>
+                    <button class="btn btn-primary" id="btn-clear-filters-empty">Clear All Filters</button>
+                </div>
+
+                <div class="timeline-stream" id="timeline-stream">
+                    <!-- Dynamic release card timeline here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-notification" id="toast-notification">
+        <span class="material-symbols-outlined toast-icon" id="toast-icon">check_circle</span>
+        <span class="toast-message" id="toast-message">Success message</span>
+    </div>
+
+    <!-- Detail Drawer Panel -->
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <div class="drawer-panel" id="drawer-panel">
+        <div class="drawer-header">
+            <span class="drawer-date" id="drawer-date">June 23, 2026</span>
+            <button class="btn-close-drawer" id="btn-close-drawer">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="drawer-body">
+            <div class="drawer-meta">
+                <span class="category-badge" id="drawer-category-badge">Feature</span>
+                <button class="btn btn-icon btn-drawer-star" id="btn-drawer-star" title="Star this release note">
+                    <span class="material-symbols-outlined fill-icon">star</span>
+                    <span>Star Update</span>
+                </button>
+            </div>
+            <h2 class="drawer-title" id="drawer-title">Conversational analytics in BigQuery is now GA</h2>
+            
+            <div class="drawer-content-html" id="drawer-content-html">
+                <!-- Content gets injected here -->
+            </div>
+        </div>
+        <div class="drawer-footer">
+            <a href="#" target="_blank" class="btn btn-primary btn-block" id="drawer-docs-link">
+                <span class="material-symbols-outlined">open_in_new</span>
+                <span>View Google Cloud Documentation</span>
+            </a>
+            <button class="btn btn-tweet btn-block" id="btn-drawer-tweet">
+                <svg class="twitter-icon" viewBox="0 0 24 24" width="18" height="18" style="display: block;">
+                    <path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                <span>Tweet this Update</span>
+            </button>
+            <button class="btn btn-secondary btn-block" id="btn-drawer-copy-link">
+                <span class="material-symbols-outlined">content_copy</span>
+                <span>Copy Shareable Link</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
