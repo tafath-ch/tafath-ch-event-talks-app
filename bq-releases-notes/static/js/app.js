@@ -26,6 +26,7 @@ const elements = {
     sortOrder: document.getElementById('sort-order'),
     categoryPills: document.getElementById('category-pills'),
     starredCountBadge: document.getElementById('starred-count-badge'),
+    btnExportCsv: document.getElementById('btn-export-csv'),
     
     // Overview Cards
     statTotal: document.getElementById('stat-total-count'),
@@ -373,6 +374,9 @@ function renderTimeline() {
                     <button class="btn-icon btn-star ${isStarred ? 'starred' : ''}" title="${isStarred ? 'Remove Star' : 'Star this note'}">
                         <span class="material-symbols-outlined">${isStarred ? 'star' : 'grade'}</span>
                     </button>
+                    <button class="btn-icon btn-copy-content" title="Copy note content to clipboard">
+                        <span class="material-symbols-outlined">content_copy</span>
+                    </button>
                     <button class="btn-icon btn-tweet-icon" title="Tweet this update">
                         <svg class="twitter-icon" viewBox="0 0 24 24" width="16" height="16" style="display: block;">
                             <path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
@@ -411,6 +415,15 @@ function renderTimeline() {
             e.stopPropagation();
             toggleBookmark(release.id);
         });
+
+        // Copy Content Button Click
+        const copyContentBtn = card.querySelector('.btn-copy-content');
+        if (copyContentBtn) {
+            copyContentBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyReleaseContentToClipboard(release);
+            });
+        }
         
         // Share Button Click
         const shareBtn = card.querySelector('.btn-share');
@@ -601,6 +614,91 @@ function copyShareableLink(id) {
     copyTextToClipboard(link, 'Shareable link copied to clipboard!');
 }
 
+// Copy Content to Clipboard (HTML stripped text content)
+function copyReleaseContentToClipboard(release) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = release.html_content;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    
+    const clipboardText = `BigQuery Release Update [${release.category}] - ${release.date}\n\n${textContent.trim()}\n\nMore details: ${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(release.id)}`;
+    
+    copyTextToClipboard(clipboardText, 'Release note copied to clipboard!');
+}
+
+// Export Filtered Releases to CSV file
+function exportFilteredReleasesToCSV() {
+    if (state.filteredReleases.length === 0) {
+        showToast('No releases available to export', 'error');
+        return;
+    }
+    
+    // CSV headers
+    const headers = ['ID', 'Date', 'ISO Date', 'Category', 'Title', 'Content', 'Link'];
+    
+    // Helper to escape CSV fields
+    const escapeCSVField = (val) => {
+        if (val === null || val === undefined) return '';
+        let str = String(val);
+        // Replace all HTML tags with plain text
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = str;
+        str = tempDiv.textContent || tempDiv.innerText || '';
+        
+        // Escape double quotes by doubling them
+        str = str.replace(/"/g, '""');
+        
+        // If field contains comma, newline, or quotes, wrap it in double quotes
+        if (str.includes(',') || str.includes('\n') || str.includes('\r') || str.includes('"')) {
+            str = `"${str}"`;
+        }
+        return str;
+    };
+    
+    // Map releases to CSV rows
+    const rows = state.filteredReleases.map(release => {
+        return [
+            escapeCSVField(release.id),
+            escapeCSVField(release.date),
+            escapeCSVField(release.iso_date),
+            escapeCSVField(release.category),
+            escapeCSVField(release.title),
+            escapeCSVField(release.html_content),
+            escapeCSVField(release.link || `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(release.id)}`)
+        ].join(',');
+    });
+    
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    
+    // Create blob and download it (using UTF-8 with BOM for Excel compatibility)
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Generate filename based on active filters
+    let filename = 'bigquery_release_notes';
+    if (state.activeTab === 'bookmarks') {
+        filename += '_starred';
+    }
+    if (state.activeCategory !== 'All') {
+        filename += `_${state.activeCategory.toLowerCase()}`;
+    }
+    if (state.timeFilter !== 'all') {
+        filename += `_last_${state.timeFilter}_days`;
+    }
+    
+    const today = new Date().toISOString().split('T')[0];
+    filename += `_${today}.csv`;
+    
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast(`Exported ${state.filteredReleases.length} updates to CSV`, 'success');
+}
+
 // Tweet Release Note Helper
 function tweetRelease(release) {
     const text = `Google BigQuery Update: ${release.title} [${release.category}]`;
@@ -687,6 +785,13 @@ function setupEventListeners() {
     elements.btnRefresh.addEventListener('click', () => {
         fetchReleases(true);
     });
+    
+    // Export CSV button
+    if (elements.btnExportCsv) {
+        elements.btnExportCsv.addEventListener('click', () => {
+            exportFilteredReleasesToCSV();
+        });
+    }
     
     // Sidebar Tabs
     elements.navAll.addEventListener('click', () => switchTab('all'));
